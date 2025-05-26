@@ -5,7 +5,7 @@ from datetime import datetime
 
 DATA_FILE = "data.csv"
 
-# --- Load Data ---
+# --- Load & Save Data ---
 def load_data():
     if os.path.exists(DATA_FILE):
         df = pd.read_csv(DATA_FILE)
@@ -43,7 +43,9 @@ df = load_data()
 # --- Judul Utama ---
 st.title("📦 Dashboard GRN - Penerimaan Barang")
 
-# --- USER SECTION ---
+# ============================
+# === USER SECTION (default)
+# ============================
 if not st.session_state["admin_logged_in"]:
     st.subheader("Input Barang Diterima (User)")
 
@@ -87,28 +89,25 @@ if not st.session_state["admin_logged_in"]:
                 save_data(df)
                 st.success("Data berhasil disimpan.")
                 st.session_state["data_updated"] = True
-                st.rerun()
+                st.experimental_rerun()
 
     st.subheader("📋 Daftar Barang & Status GRN")
 
     if df.empty:
         st.info("Belum ada data barang yang masuk.")
     else:
-        display_df = df.copy()
-        filtered_df = display_df[
-            (display_df["Nomor_PO"].notna()) & (display_df["Nama_Vendor"].notna()) &
-            (display_df["Nomor_PO"].astype(str).str.strip() != "") &
-            (display_df["Nama_Vendor"].str.strip() != "")
+        filtered_df = df[
+            (df["Nomor_PO"].notna()) & (df["Nama_Vendor"].notna()) &
+            (df["Nomor_PO"].astype(str).str.strip() != "") &
+            (df["Nama_Vendor"].str.strip() != "")
         ].reset_index(drop=True)
 
         st.write(filtered_df[["Tanggal", "Nomor_PO", "Nama_Vendor", "Status_GRN"]])
 
-        selected_index = st.selectbox("Pilih Nomor PO untuk download File PO (User Upload):",
-                                      options=filtered_df.index,
+        selected_index = st.selectbox("Pilih Nomor PO untuk download File PO:", options=filtered_df.index,
                                       format_func=lambda x: f"{filtered_df.loc[x, 'Nomor_PO']} - {filtered_df.loc[x, 'Nama_Vendor']}")
-
-        file_po_path = filtered_df.loc[selected_index, "File_PO_Path"]
-        download_button = make_download_link(file_po_path)
+        po_path = filtered_df.loc[selected_index, "File_PO_Path"]
+        download_button = make_download_link(po_path)
         if download_button is None:
             st.write("File PO tidak tersedia.")
 
@@ -118,43 +117,71 @@ if not st.session_state["admin_logged_in"]:
         if filtered_grn.empty:
             st.write("Belum ada file GRN yang diupload admin.")
         else:
-            selected_grn_index = st.selectbox("Pilih Nomor PO untuk download File GRN (Admin Upload):",
+            selected_grn_index = st.selectbox("Pilih Nomor PO untuk download File GRN:",
                                               options=filtered_grn.index,
                                               format_func=lambda x: f"{filtered_grn.loc[x, 'Nomor_PO']} - {filtered_grn.loc[x, 'Nama_Vendor']}")
-
-            file_grn_path = filtered_grn.loc[selected_grn_index, "File_GRN_Path"]
-            download_button_grn = make_download_link(file_grn_path)
-            if download_button_grn is None:
+            grn_path = filtered_grn.loc[selected_grn_index, "File_GRN_Path"]
+            download_grn = make_download_link(grn_path)
+            if download_grn is None:
                 st.write("File GRN tidak tersedia.")
 
-# --- ADMIN SECTION ---
+# ============================
+# === ADMIN SECTION
+# ============================
 st.sidebar.title("Admin Login")
 
 if not st.session_state["admin_logged_in"]:
     username = st.sidebar.text_input("Username")
     password = st.sidebar.text_input("Password", type="password")
-    login = st.sidebar.button("Login sebagai Admin")
-
-    if login:
+    if st.sidebar.button("Login sebagai Admin"):
         if username == "admin" and password == "admin123":
             st.session_state["admin_logged_in"] = True
             st.sidebar.success("Login berhasil!")
-            st.rerun()
+            st.experimental_rerun()
         else:
             st.sidebar.error("Username atau password salah.")
 else:
     st.sidebar.success("Anda login sebagai admin.")
     if st.sidebar.button("Logout"):
         st.session_state["admin_logged_in"] = False
-        st.rerun()
+        st.experimental_rerun()
 
-    st.subheader("✅ Update Status GRN dan Upload File GRN (Admin Only)")
+    st.subheader("✅ Update Status GRN & Upload File GRN")
 
+    # === FITUR PENCARIAN
+    st.subheader("🔎 Cari Data PO")
+
+    search_po = st.text_input("Cari berdasarkan Nomor PO")
+    search_vendor = st.text_input("Cari berdasarkan Nama Vendor")
+
+    filtered_admin_df = df.copy()
+    if search_po:
+        filtered_admin_df = filtered_admin_df[filtered_admin_df["Nomor_PO"].astype(str).str.contains(search_po, case=False)]
+    if search_vendor:
+        filtered_admin_df = filtered_admin_df[filtered_admin_df["Nama_Vendor"].astype(str).str.contains(search_vendor, case=False)]
+
+    st.write("Data User Upload PO (Hasil Pencarian):")
+    st.write(filtered_admin_df[["Tanggal", "Nomor_PO", "Nama_Vendor", "Status_GRN"]])
+
+    st.subheader("📎 File PO dari User (Hasil Pencarian)")
+    for idx, row in filtered_admin_df.iterrows():
+        st.markdown(f"**PO:** {row['Nomor_PO']} | **Vendor:** {row['Nama_Vendor']} | **Tanggal:** {row['Tanggal']}")
+        po_path = row["File_PO_Path"]
+        if po_path and os.path.exists(po_path):
+            with open(po_path, "rb") as f:
+                st.download_button(
+                    label=f"Download File PO ({os.path.basename(po_path)})",
+                    data=f.read(),
+                    file_name=os.path.basename(po_path),
+                    key=f"download_po_admin_{idx}"
+                )
+        else:
+            st.warning("File PO tidak tersedia.")
+        st.markdown("---")
+
+    # === UPLOAD GRN
     if not df.empty:
-        st.write("Data User Upload PO:")
-        st.write(df[["Tanggal", "Nomor_PO", "Nama_Vendor", "Status_GRN"]])
-
-        selected_po = st.selectbox("Pilih Nomor PO", df["Nomor_PO"].unique())
+        selected_po = st.selectbox("Pilih Nomor PO untuk upload GRN", df["Nomor_PO"].unique())
         file_grn = st.file_uploader("Upload File GRN (PDF/JPG/PNG)", type=["pdf", "jpg", "png"])
 
         if st.button("Tandai GRN Sudah Dibuat dan Simpan File GRN") and selected_po:
@@ -174,41 +201,24 @@ else:
                 if grn_path != "":
                     df.loc[idx, "File_GRN_Path"] = grn_path
                 save_data(df)
-                st.success(f"Status GRN dan file GRN untuk PO {selected_po} telah diperbarui.")
+                st.success(f"Status GRN dan file GRN untuk PO {selected_po} diperbarui.")
                 st.session_state["data_updated"] = True
-                st.rerun()
+                st.experimental_rerun()
             else:
                 st.warning("Nomor PO tidak ditemukan.")
-
-        # ✅ Tambahan: lihat file PO dari User
-        st.subheader("📎 File PO dari User")
-
-        for idx, row in df.iterrows():
-            st.markdown(f"**PO:** {row['Nomor_PO']} | **Vendor:** {row['Nama_Vendor']} | **Tanggal:** {row['Tanggal']}")
-            po_path = row["File_PO_Path"]
-            if po_path and os.path.exists(po_path):
-                with open(po_path, "rb") as f:
-                    st.download_button(
-                        label=f"Download File PO ({os.path.basename(po_path)})",
-                        data=f.read(),
-                        file_name=os.path.basename(po_path),
-                        key=f"download_po_admin_{idx}"
-                    )
-            else:
-                st.warning("File PO tidak tersedia.")
-            st.markdown("---")
-
     else:
-        st.warning("Data kosong, tidak ada PO untuk diupdate.")
+        st.warning("Tidak ada data PO untuk diperbarui.")
 
-    st.subheader("🗑 Hapus Data Duplikat Nomor PO (Admin Only)")
-    if st.button("Hapus Data Duplikat (Sisakan yang Pertama)"):
+    # === HAPUS DUPLIKAT
+    st.subheader("🗑 Hapus Data Duplikat Nomor PO")
+    if st.button("Hapus Duplikat (Simpan yang Pertama)"):
         before = len(df)
         df = df.drop_duplicates(subset=["Nomor_PO"], keep="first").reset_index(drop=True)
         after = len(df)
         save_data(df)
-        st.success(f"Duplikat dihapus. Baris sebelum: {before}, sesudah: {after}")
+        st.success(f"Duplikat dihapus. Sebelum: {before}, Sesudah: {after}")
         st.session_state["data_updated"] = True
-        st.rerun()
+        st.experimental_rerun()
+
 
 
