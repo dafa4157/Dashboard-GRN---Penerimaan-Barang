@@ -29,6 +29,14 @@ def make_download_link(file_path):
     with open(file_path, "rb") as f:
         return st.download_button(label=f"Download {filename}", data=f, file_name=filename)
 
+def colored_status(status):
+    if status == "Sudah Dibuat":
+        return "✅ Sudah Dibuat"
+    elif status == "Belum Dibuat":
+        return "❌ Belum Dibuat"
+    else:
+        return status
+
 # --- Session Setup ---
 if "admin_logged_in" not in st.session_state:
     st.session_state["admin_logged_in"] = False
@@ -39,8 +47,74 @@ df = load_data()
 # --- Judul ---
 st.title("📦 Dashboard GRN - Penerimaan Barang")
 
+# --- Admin Section ---
+if st.session_state["admin_logged_in"]:
+
+    st.sidebar.success("Anda login sebagai admin.")
+    if st.sidebar.button("Logout"):
+        st.session_state["admin_logged_in"] = False
+        st.experimental_rerun()
+
+    # 📊 Rekap Data User & Status GRN (hanya di admin)
+    st.subheader("📊 Rekap Data User & Status GRN")
+    if df.empty:
+        st.info("Belum ada data.")
+    else:
+        df_display = df.copy()
+        df_display["Status"] = df_display["Status_GRN"].apply(colored_status)
+        st.dataframe(df_display[["Tanggal", "Nomor_PO", "Nama_Vendor", "Status"]])
+
+    # Fungsi pencarian dan update GRN
+    st.subheader("📥 Cari File PO User & Upload GRN")
+
+    search_po = st.text_input("Cari Nomor PO")
+    search_vendor = st.text_input("Cari Nama Vendor")
+    filtered_admin_df = df.copy()
+
+    if search_po:
+        filtered_admin_df = filtered_admin_df[filtered_admin_df["Nomor_PO"].astype(str).str.contains(search_po, case=False)]
+    if search_vendor:
+        filtered_admin_df = filtered_admin_df[filtered_admin_df["Nama_Vendor"].str.contains(search_vendor, case=False)]
+
+    if filtered_admin_df.empty:
+        st.warning("Tidak ada hasil pencarian.")
+    else:
+        opsi = filtered_admin_df.apply(lambda r: f"Nomor PO: {r['Nomor_PO']} - Vendor: {r['Nama_Vendor']}", axis=1).tolist()
+        selected_row = st.selectbox("Pilih data:", opsi)
+        idx = opsi.index(selected_row)
+        selected_data = filtered_admin_df.iloc[idx]
+
+        make_download_link(selected_data["File_PO_Path"])
+
+        file_grn = st.file_uploader("Upload File GRN (PDF/JPG/PNG)", type=["pdf", "jpg", "png"])
+        if st.button("Upload File GRN dan Update Status"):
+            grn_path = ""
+            if file_grn:
+                grn_dir = "uploaded_grn"
+                os.makedirs(grn_dir, exist_ok=True)
+                safe_name = f"{selected_data['Nomor_PO']}_{file_grn.name}"
+                grn_path = os.path.join(grn_dir, safe_name).replace("\\", "/")
+                with open(grn_path, "wb") as f:
+                    f.write(file_grn.getbuffer())
+
+            df.loc[df["Nomor_PO"] == selected_data["Nomor_PO"], "Status_GRN"] = "Sudah Dibuat"
+            df.loc[df["Nomor_PO"] == selected_data["Nomor_PO"], "File_GRN_Path"] = grn_path
+            save_data(df)
+            st.success("File GRN berhasil diupload dan status diperbarui.")
+            st.experimental_rerun()
+
+    # Hapus duplikat
+    st.subheader("🧹 Hapus Duplikat Nomor PO")
+    if st.button("Hapus Duplikat"):
+        before = len(df)
+        df = df.drop_duplicates(subset="Nomor_PO", keep="first")
+        save_data(df)
+        after = len(df)
+        st.success(f"Duplikat dihapus. Sebelum: {before}, Sesudah: {after}")
+        st.experimental_rerun()
+
 # --- User Section ---
-if not st.session_state["admin_logged_in"]:
+else:
     st.subheader("Input Barang Diterima (User)")
     with st.form("form_input"):
         tanggal = st.date_input("Tanggal Diterima", value=datetime.today())
@@ -107,72 +181,9 @@ if not st.session_state["admin_logged_in"]:
     if st.sidebar.button("Login"):
         if username == "admin" and password == "admin123":
             st.session_state["admin_logged_in"] = True
-            st.success("Login berhasil!")
-            st.experimental_rerun()  # reload halaman otomatis setelah login
+            st.experimental_rerun()
         else:
             st.sidebar.error("Username atau password salah.")
-else:
-    st.sidebar.success("Anda login sebagai admin.")
-    if st.sidebar.button("Logout"):
-        st.session_state["admin_logged_in"] = False
-        st.experimental_rerun()  # reload halaman setelah logout
-
-    # --- Admin Section ---
-    # Rekap data hanya tampil di sini
-    st.subheader("📊 Rekap Data User & Status GRN")
-    if df.empty:
-        st.info("Belum ada data.")
-    else:
-        st.dataframe(df[["Tanggal", "Nomor_PO", "Nama_Vendor", "Status_GRN"]])
-
-    st.subheader("📥 Cari File PO User & Upload GRN")
-
-    search_po = st.text_input("Cari Nomor PO")
-    search_vendor = st.text_input("Cari Nama Vendor")
-    filtered_admin_df = df.copy()
-
-    if search_po:
-        filtered_admin_df = filtered_admin_df[filtered_admin_df["Nomor_PO"].astype(str).str.contains(search_po, case=False)]
-    if search_vendor:
-        filtered_admin_df = filtered_admin_df[filtered_admin_df["Nama_Vendor"].str.contains(search_vendor, case=False)]
-
-    if filtered_admin_df.empty:
-        st.warning("Tidak ada hasil pencarian.")
-    else:
-        opsi = filtered_admin_df.apply(lambda r: f"Nomor PO: {r['Nomor_PO']} - Vendor: {r['Nama_Vendor']} - Status: {r['Status_GRN']}", axis=1).tolist()
-        selected_row = st.selectbox("Pilih data:", opsi)
-        idx = opsi.index(selected_row)
-        selected_data = filtered_admin_df.iloc[idx]
-
-        make_download_link(selected_data["File_PO_Path"])
-
-        file_grn = st.file_uploader("Upload File GRN (PDF/JPG/PNG)", type=["pdf", "jpg", "png"])
-        if st.button("Upload File GRN dan Update Status"):
-            grn_path = ""
-            if file_grn:
-                grn_dir = "uploaded_grn"
-                os.makedirs(grn_dir, exist_ok=True)
-                safe_name = f"{selected_data['Nomor_PO']}_{file_grn.name}"
-                grn_path = os.path.join(grn_dir, safe_name).replace("\\", "/")
-                with open(grn_path, "wb") as f:
-                    f.write(file_grn.getbuffer())
-
-            df.loc[df["Nomor_PO"] == selected_data["Nomor_PO"], "Status_GRN"] = "Sudah Dibuat"
-            df.loc[df["Nomor_PO"] == selected_data["Nomor_PO"], "File_GRN_Path"] = grn_path
-            save_data(df)
-            st.success("File GRN berhasil diupload dan status diperbarui.")
-            st.experimental_rerun()
-
-    # --- Hapus Duplikat ---
-    st.subheader("🧹 Hapus Duplikat Nomor PO")
-    if st.button("Hapus Duplikat"):
-        before = len(df)
-        df = df.drop_duplicates(subset="Nomor_PO", keep="first")
-        save_data(df)
-        after = len(df)
-        st.success(f"Duplikat dihapus. Sebelum: {before}, Sesudah: {after}")
-        st.experimental_rerun()
-
 
 
 
