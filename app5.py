@@ -45,19 +45,17 @@ st.sidebar.title("Admin Login")
 if not st.session_state["admin_logged_in"]:
     username = st.sidebar.text_input("Username")
     password = st.sidebar.text_input("Password", type="password")
-    login_clicked = st.sidebar.button("Login")
-    if login_clicked:
+    if st.sidebar.button("Login"):
         if username == "admin" and password == "admin123":
             st.session_state["admin_logged_in"] = True
-            st.experimental_rerun()  # rerun setelah login sukses
+            st.experimental_rerun()
         else:
             st.sidebar.error("Username atau password salah.")
 else:
     st.sidebar.success("Anda login sebagai admin.")
-    logout_clicked = st.sidebar.button("Logout")
-    if logout_clicked:
+    if st.sidebar.button("Logout"):
         st.session_state["admin_logged_in"] = False
-        st.experimental_rerun()  # rerun setelah logout
+        st.experimental_rerun()
 
 # --- Content berdasarkan role ---
 if st.session_state["admin_logged_in"]:
@@ -101,8 +99,7 @@ if st.session_state["admin_logged_in"]:
             st.info("File PO belum diupload user.")
 
         file_grn = st.file_uploader("Upload File GRN (PDF/JPG/PNG)", type=["pdf", "jpg", "png"])
-        upload_clicked = st.button("Upload File GRN dan Update Status")
-        if upload_clicked:
+        if st.button("Upload File GRN dan Update Status"):
             if file_grn is not None:
                 grn_dir = "uploaded_grn"
                 os.makedirs(grn_dir, exist_ok=True)
@@ -120,8 +117,7 @@ if st.session_state["admin_logged_in"]:
                 st.warning("Silakan pilih file GRN terlebih dahulu.")
 
     st.subheader("🧹 Hapus Duplikat Nomor PO")
-    hapus_duplikat_clicked = st.button("Hapus Duplikat")
-    if hapus_duplikat_clicked:
+    if st.button("Hapus Duplikat"):
         before = len(df)
         df = df.drop_duplicates(subset="Nomor_PO", keep="first")
         save_data(df)
@@ -169,6 +165,7 @@ else:
                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                 save_data(df)
                 st.success("Data berhasil disimpan. Silakan reload halaman.")
+                # Jangan pakai st.stop(), biar session state tetap aman
 
     st.subheader("📋 Daftar Barang & Status GRN")
     if df.empty:
@@ -186,8 +183,7 @@ else:
         if not filtered_grn.empty:
             idx2 = st.selectbox("Pilih Nomor PO (Admin GRN):", options=filtered_grn.index,
                                 format_func=lambda i: f"{filtered_grn.loc[i, 'Nomor_PO']} - {filtered_grn.loc[i, 'Nama_Vendor']}")
-            make_download_link(filtered_grn.loc[idx2, "File_GRN_Path"])
-
+            make_download_link(filtered_grn.loc[idx2, "File_GRN_Path"]) 
 
 
 
