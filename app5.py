@@ -5,7 +5,7 @@ from datetime import datetime
 
 DATA_FILE = "data.csv"
 
-
+# --- Load Data ---
 def load_data():
     if os.path.exists(DATA_FILE):
         df = pd.read_csv(DATA_FILE)
@@ -19,10 +19,8 @@ def load_data():
         df.to_csv(DATA_FILE, index=False)
         return df
 
-
 def save_data(df):
     df.to_csv(DATA_FILE, index=False)
-
 
 def make_download_link(file_path):
     if pd.isna(file_path) or file_path == "":
@@ -34,13 +32,19 @@ def make_download_link(file_path):
         data = f.read()
     return st.download_button(label=f"Download {filename}", data=data, file_name=filename)
 
+# --- Session & Load ---
+if "admin_logged_in" not in st.session_state:
+    st.session_state["admin_logged_in"] = False
+if "data_updated" in st.session_state and st.session_state["data_updated"]:
+    st.session_state["data_updated"] = False
 
 df = load_data()
 
+# --- Judul Utama ---
 st.title("📦 Dashboard GRN - Penerimaan Barang")
 
-# -- User Section --
-if not st.session_state.get("admin_logged_in", False):
+# --- USER SECTION ---
+if not st.session_state["admin_logged_in"]:
     st.subheader("Input Barang Diterima (User)")
 
     with st.form("form_input"):
@@ -82,6 +86,8 @@ if not st.session_state.get("admin_logged_in", False):
                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                 save_data(df)
                 st.success("Data berhasil disimpan.")
+                st.session_state["data_updated"] = True
+                st.experimental_rerun()
 
     st.subheader("📋 Daftar Barang & Status GRN")
 
@@ -121,20 +127,17 @@ if not st.session_state.get("admin_logged_in", False):
             if download_button_grn is None:
                 st.write("File GRN tidak tersedia atau tidak ditemukan.")
 
-# -- Admin Section --
+# --- ADMIN SECTION ---
 st.sidebar.title("Admin Login")
 
-if "admin_logged_in" not in st.session_state:
-    st.session_state.admin_logged_in = False
-
-if not st.session_state.admin_logged_in:
+if not st.session_state["admin_logged_in"]:
     username = st.sidebar.text_input("Username")
     password = st.sidebar.text_input("Password", type="password")
     login = st.sidebar.button("Login sebagai Admin")
 
     if login:
         if username == "admin" and password == "admin123":
-            st.session_state.admin_logged_in = True
+            st.session_state["admin_logged_in"] = True
             st.sidebar.success("Login berhasil!")
             st.experimental_rerun()
         else:
@@ -142,15 +145,14 @@ if not st.session_state.admin_logged_in:
 else:
     st.sidebar.success("Anda login sebagai admin.")
     if st.sidebar.button("Logout"):
-        st.session_state.admin_logged_in = False
+        st.session_state["admin_logged_in"] = False
         st.experimental_rerun()
 
     st.subheader("✅ Update Status GRN dan Upload File GRN (Admin Only)")
 
     if not df.empty:
         st.write("Data User Upload PO:")
-        display_df = df.copy()
-        st.write(display_df[["Tanggal", "Nomor_PO", "Nama_Vendor", "Status_GRN"]])
+        st.write(df[["Tanggal", "Nomor_PO", "Nama_Vendor", "Status_GRN"]])
 
         selected_po = st.selectbox("Pilih Nomor PO", df["Nomor_PO"].unique())
         file_grn = st.file_uploader("Upload File GRN (PDF/JPG/PNG)", type=["pdf", "jpg", "png"])
@@ -173,6 +175,7 @@ else:
                     df.loc[idx, "File_GRN_Path"] = grn_path
                 save_data(df)
                 st.success(f"Status GRN dan file GRN untuk PO {selected_po} telah diperbarui.")
+                st.session_state["data_updated"] = True
                 st.experimental_rerun()
             else:
                 st.warning("Nomor PO tidak ditemukan di data.")
@@ -186,5 +189,6 @@ else:
         after = len(df)
         save_data(df)
         st.success(f"Duplikat dihapus. Baris sebelum: {before}, sesudah: {after}")
+        st.session_state["data_updated"] = True
         st.experimental_rerun()
 
