@@ -48,14 +48,14 @@ if not st.session_state["admin_logged_in"]:
     if st.sidebar.button("Login"):
         if username == "admin" and password == "admin123":
             st.session_state["admin_logged_in"] = True
-            st.experimental_rerun()  # Rerun hanya setelah login berhasil
+            st.rerun()  # Rerun hanya setelah login berhasil
         else:
             st.sidebar.error("Username atau password salah.")
 else:
     st.sidebar.success("Anda login sebagai admin.")
     if st.sidebar.button("Logout"):
         st.session_state["admin_logged_in"] = False
-        st.experimental_rerun()  # Rerun setelah logout
+        st.rerun()  # Rerun setelah logout
 
 # Konten utama berdasarkan role
 if st.session_state["admin_logged_in"]:
@@ -110,7 +110,7 @@ if st.session_state["admin_logged_in"]:
                 df.loc[df["Nomor_PO"] == selected_data["Nomor_PO"], "File_GRN_Path"] = grn_path
                 save_data(df)
                 st.success("File GRN berhasil diupload dan status diperbarui.")
-                st.experimental_rerun()  # rerun setelah upload sukses
+                st.rerun()  # rerun setelah upload sukses
             else:
                 st.warning("Silakan pilih file GRN terlebih dahulu.")
 
@@ -121,7 +121,7 @@ if st.session_state["admin_logged_in"]:
         save_data(df)
         after = len(df)
         st.success(f"Duplikat dihapus. Sebelum: {before}, Sesudah: {after}")
-        st.experimental_rerun()
+        st.rerun()
 
 else:
     # Panel user input
@@ -163,7 +163,7 @@ else:
                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                 save_data(df)
                 st.success("Data berhasil disimpan.")
-                st.experimental_rerun()  # Rerun setelah submit
+                st.rerun()  # Rerun setelah submit
 
     st.subheader("📋 Daftar Barang & Status GRN")
     if df.empty:
@@ -182,6 +182,7 @@ else:
             idx2 = st.selectbox("Pilih Nomor PO (Admin GRN):", options=filtered_grn.index,
                                 format_func=lambda i: f"{filtered_grn.loc[i, 'Nomor_PO']} - {filtered_grn.loc[i, 'Nama_Vendor']}")
             make_download_link(filtered_grn.loc[idx2, "File_GRN_Path"])
+
 
 
 
