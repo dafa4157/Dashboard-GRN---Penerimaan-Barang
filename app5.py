@@ -5,7 +5,7 @@ from datetime import datetime
 
 DATA_FILE = "data.csv"
 
-# --- Load & Save Data ---
+# --- Fungsi Load & Save Data ---
 def load_data():
     if os.path.exists(DATA_FILE):
         df = pd.read_csv(DATA_FILE)
@@ -22,6 +22,7 @@ def load_data():
 def save_data(df):
     df.to_csv(DATA_FILE, index=False)
 
+# --- Fungsi untuk tombol download file ---
 def make_download_link(file_path):
     if pd.isna(file_path) or file_path == "" or not os.path.exists(file_path):
         return None
@@ -29,17 +30,17 @@ def make_download_link(file_path):
     with open(file_path, "rb") as f:
         return st.download_button(label=f"Download {filename}", data=f, file_name=filename)
 
-# --- Session state for login ---
+# --- Inisialisasi Session State untuk login ---
 if "admin_logged_in" not in st.session_state:
     st.session_state["admin_logged_in"] = False
 
-# --- Load data ---
+# --- Load data awal ---
 df = load_data()
 
-# --- Title ---
+# --- Judul aplikasi ---
 st.title("📦 Dashboard GRN - Penerimaan Barang")
 
-# --- Sidebar Login ---
+# --- Sidebar untuk Login Admin ---
 st.sidebar.title("Admin Login")
 
 if not st.session_state["admin_logged_in"]:
@@ -57,7 +58,7 @@ else:
         st.session_state["admin_logged_in"] = False
         st.experimental_rerun()
 
-# --- Content berdasarkan role ---
+# --- Konten berdasarkan role ---
 if st.session_state["admin_logged_in"]:
     # ADMIN PANEL
     st.subheader("📊 Rekap Data User & Status GRN")
@@ -165,7 +166,6 @@ else:
                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                 save_data(df)
                 st.success("Data berhasil disimpan. Silakan reload halaman.")
-                # Jangan pakai st.stop(), biar session state tetap aman
 
     st.subheader("📋 Daftar Barang & Status GRN")
     if df.empty:
@@ -184,6 +184,7 @@ else:
             idx2 = st.selectbox("Pilih Nomor PO (Admin GRN):", options=filtered_grn.index,
                                 format_func=lambda i: f"{filtered_grn.loc[i, 'Nomor_PO']} - {filtered_grn.loc[i, 'Nama_Vendor']}")
             make_download_link(filtered_grn.loc[idx2, "File_GRN_Path"])
+
 
 
 
