@@ -156,8 +156,12 @@ else:
 
         # --- Pencarian Admin berdasarkan Nomor PO dan Nama Vendor ---
         st.subheader("🔍 Cari dan Download File PO User (Admin Only)")
-        search_po = st.text_input("Cari Nomor PO")
-        search_vendor = st.text_input("Cari Nama Vendor")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            search_po = st.text_input("Cari Nomor PO", key="search_po")
+        with col2:
+            search_vendor = st.text_input("Cari Nama Vendor", key="search_vendor")
 
         filtered_po_user = df.copy()
 
@@ -173,14 +177,19 @@ else:
         if filtered_po_user.empty:
             st.warning("Data tidak ditemukan sesuai pencarian.")
         else:
-            pilihan_po = filtered_po_user.apply(
-                lambda row: f"Nomor PO: {row['Nomor_PO']} - Vendor: {row['Nama_Vendor']}", axis=1
-            ).tolist()
+            # Tampilkan tabel hasil filter
+            st.write(filtered_po_user[["Tanggal", "Nomor_PO", "Nama_Vendor", "Status_GRN"]].reset_index(drop=True))
 
-            selected = st.selectbox("Pilih File PO User", pilihan_po)
+            # Pilih nomor PO dari hasil pencarian untuk download file PO
+            selected_idx = st.number_input(
+                "Pilih indeks baris untuk download File PO User",
+                min_value=0,
+                max_value=len(filtered_po_user) - 1,
+                step=1,
+                format="%d"
+            )
 
-            idx = pilihan_po.index(selected)
-            file_po_path = filtered_po_user.iloc[idx]["File_PO_Path"]
+            file_po_path = filtered_po_user.iloc[selected_idx]["File_PO_Path"]
 
             if file_po_path and os.path.exists(file_po_path):
                 with open(file_po_path, "rb") as f:
@@ -231,5 +240,6 @@ else:
         st.success(f"Duplikat dihapus. Baris sebelum: {before}, sesudah: {after}")
         st.session_state["data_updated"] = True
         st.experimental_rerun()
+
 
 
