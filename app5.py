@@ -39,13 +39,6 @@ df = load_data()
 # --- Judul ---
 st.title("📦 Dashboard GRN - Penerimaan Barang")
 
-# --- Rekap Data User & Status GRN (di atas user section) ---
-st.subheader("📊 Rekap Data User & Status GRN")
-if df.empty:
-    st.info("Belum ada data.")
-else:
-    st.dataframe(df[["Tanggal", "Nomor_PO", "Nama_Vendor", "Status_GRN"]])
-
 # --- User Section ---
 if not st.session_state["admin_logged_in"]:
     st.subheader("Input Barang Diterima (User)")
@@ -125,6 +118,13 @@ else:
         st.experimental_rerun()  # reload halaman setelah logout
 
     # --- Admin Section ---
+    # Rekap data hanya tampil di sini
+    st.subheader("📊 Rekap Data User & Status GRN")
+    if df.empty:
+        st.info("Belum ada data.")
+    else:
+        st.dataframe(df[["Tanggal", "Nomor_PO", "Nama_Vendor", "Status_GRN"]])
+
     st.subheader("📥 Cari File PO User & Upload GRN")
 
     search_po = st.text_input("Cari Nomor PO")
