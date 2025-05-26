@@ -87,7 +87,7 @@ if not st.session_state["admin_logged_in"]:
                 save_data(df)
                 st.success("Data berhasil disimpan.")
                 st.session_state["data_updated"] = True
-                st.experimental_rerun()
+                st.rerun()
 
     st.subheader("📋 Daftar Barang & Status GRN")
 
@@ -139,14 +139,14 @@ if not st.session_state["admin_logged_in"]:
         if username == "admin" and password == "admin123":
             st.session_state["admin_logged_in"] = True
             st.sidebar.success("Login berhasil!")
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.sidebar.error("Username atau password salah.")
 else:
     st.sidebar.success("Anda login sebagai admin.")
     if st.sidebar.button("Logout"):
         st.session_state["admin_logged_in"] = False
-        st.experimental_rerun()
+        st.rerun()
 
     st.subheader("✅ Update Status GRN dan Upload File GRN (Admin Only)")
 
@@ -176,7 +176,7 @@ else:
                 save_data(df)
                 st.success(f"Status GRN dan file GRN untuk PO {selected_po} telah diperbarui.")
                 st.session_state["data_updated"] = True
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.warning("Nomor PO tidak ditemukan di data.")
     else:
@@ -190,5 +190,5 @@ else:
         save_data(df)
         st.success(f"Duplikat dihapus. Baris sebelum: {before}, sesudah: {after}")
         st.session_state["data_updated"] = True
-        st.experimental_rerun()
+        st.rerun()
 
