@@ -35,11 +35,12 @@ def make_download_link(file_path):
 # --- Session & Load ---
 if "admin_logged_in" not in st.session_state:
     st.session_state["admin_logged_in"] = False
-if "data_updated" not in st.session_state:
+if "data_updated" in st.session_state and st.session_state["data_updated"]:
     st.session_state["data_updated"] = False
 
 df = load_data()
 
+# --- Judul Utama ---
 st.title("📦 Dashboard GRN - Penerimaan Barang")
 
 # --- USER SECTION ---
@@ -66,7 +67,7 @@ if not st.session_state["admin_logged_in"]:
             else:
                 po_path = ""
                 if file_po is not None:
-                    po_dir = "uploaded_po"
+                    po_dir = "uploaded_po_user"  # folder khusus untuk file PO user
                     os.makedirs(po_dir, exist_ok=True)
                     safe_name = f"{nomor_po}_{file_po.name}"
                     po_path = os.path.join(po_dir, safe_name)
@@ -86,7 +87,7 @@ if not st.session_state["admin_logged_in"]:
                 save_data(df)
                 st.success("Data berhasil disimpan.")
                 st.session_state["data_updated"] = True
-                st.rerun()
+                st.experimental_rerun()
 
     st.subheader("📋 Daftar Barang & Status GRN")
 
@@ -138,41 +139,51 @@ if not st.session_state["admin_logged_in"]:
         if username == "admin" and password == "admin123":
             st.session_state["admin_logged_in"] = True
             st.sidebar.success("Login berhasil!")
-            st.rerun()
+            st.experimental_rerun()
         else:
             st.sidebar.error("Username atau password salah.")
 else:
     st.sidebar.success("Anda login sebagai admin.")
     if st.sidebar.button("Logout"):
         st.session_state["admin_logged_in"] = False
-        st.rerun()
+        st.experimental_rerun()
 
-    st.subheader("🔎 Cari Data PO (Admin)")
-    cari_po = st.text_input("Cari Nomor PO")
-    cari_vendor = st.text_input("Cari Nama Vendor")
+    st.subheader("🔍 Cari Data User (Admin Only)")
+    search_po = st.text_input("Cari Nomor PO")
+    search_vendor = st.text_input("Cari Nama Vendor")
 
-    filtered_df = df.copy()
-    if cari_po.strip() != "":
-        filtered_df = filtered_df[filtered_df["Nomor_PO"].astype(str).str.contains(cari_po.strip(), case=False, na=False)]
-    if cari_vendor.strip() != "":
-        filtered_df = filtered_df[filtered_df["Nama_Vendor"].str.contains(cari_vendor.strip(), case=False, na=False)]
+    filtered_df_admin = df.copy()
 
-    if filtered_df.empty:
-        st.info("Data PO tidak ditemukan sesuai pencarian.")
+    if search_po.strip() != "":
+        filtered_df_admin = filtered_df_admin[filtered_df_admin["Nomor_PO"].astype(str).str.contains(search_po.strip(), case=False, na=False)]
+    if search_vendor.strip() != "":
+        filtered_df_admin = filtered_df_admin[filtered_df_admin["Nama_Vendor"].str.contains(search_vendor.strip(), case=False, na=False)]
+
+    if filtered_df_admin.empty:
+        st.warning("Data tidak ditemukan.")
     else:
-        st.write(filtered_df[["Tanggal", "Nomor_PO", "Nama_Vendor", "Status_GRN"]])
+        st.write(filtered_df_admin[["Tanggal", "Nomor_PO", "Nama_Vendor", "Status_GRN"]])
 
-        st.markdown("### File PO User Upload")
-        for i, row in filtered_df.iterrows():
-            st.write(f"Nomor PO: {row['Nomor_PO']} - Vendor: {row['Nama_Vendor']}")
-            file_po_dl = make_download_link(row["File_PO_Path"])
-            if file_po_dl is None:
-                st.write("File PO tidak tersedia atau tidak ditemukan.")
-            st.markdown("---")
+        st.markdown("**File PO User Upload:**")
+        selected_po_user = st.selectbox(
+            "Pilih Nomor PO untuk download File PO User",
+            options=filtered_df_admin["Nomor_PO"].unique()
+        )
+        po_path_user = filtered_df_admin.loc[filtered_df_admin["Nomor_PO"] == selected_po_user, "File_PO_Path"].values
+        if len(po_path_user) > 0 and po_path_user[0] != "" and os.path.exists(po_path_user[0]):
+            with open(po_path_user[0], "rb") as f:
+                st.download_button(
+                    label=f"Download File PO User: {os.path.basename(po_path_user[0])}",
+                    data=f,
+                    file_name=os.path.basename(po_path_user[0]),
+                )
+        else:
+            st.write("File PO User tidak tersedia atau tidak ditemukan.")
 
-        st.markdown("### Update Status GRN dan Upload File GRN")
+        st.markdown("---")
+        st.markdown("**Update Status GRN dan Upload File GRN (Admin Only)**")
 
-        selected_po = st.selectbox("Pilih Nomor PO untuk update GRN", filtered_df["Nomor_PO"].unique())
+        selected_po = st.selectbox("Pilih Nomor PO untuk update", filtered_df_admin["Nomor_PO"].unique())
         file_grn = st.file_uploader("Upload File GRN (PDF/JPG/PNG)", type=["pdf", "jpg", "png"])
 
         if st.button("Tandai GRN Sudah Dibuat dan Simpan File GRN") and selected_po:
@@ -186,26 +197,6 @@ else:
                     f.write(file_grn.getbuffer())
                 grn_path = grn_path.replace("\\", "/")
 
-            idx = df.index[df["Nomor_PO"] == selected_po]
-            if len(idx) > 0:
-                df.loc[idx, "Status_GRN"] = "Sudah Dibuat"
-                if grn_path != "":
-                    df.loc[idx, "File_GRN_Path"] = grn_path
-                save_data(df)
-                st.success(f"Status GRN dan file GRN untuk PO {selected_po} telah diperbarui.")
-                st.session_state["data_updated"] = True
-                st.rerun()
-            else:
-                st.warning("Nomor PO tidak ditemukan di data.")
-
-    st.subheader("🗑 Hapus Data Duplikat Nomor PO (Admin Only)")
-    if st.button("Hapus Data Duplikat (Sisakan yang Pertama)"):
-        before = len(df)
-        df = df.drop_duplicates(subset=["Nomor_PO"], keep="first").reset_index(drop=True)
-        after = len(df)
-        save_data(df)
-        st.success(f"Duplikat dihapus. Baris sebelum: {before}, sesudah: {after}")
-        st.session_state["data_updated"] = True
-        st.rerun()
+            idx = df.index[df["Nomor_PO"] == selected_po
 
 
