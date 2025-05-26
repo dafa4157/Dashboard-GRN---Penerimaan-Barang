@@ -183,7 +183,8 @@ else:
         if not filtered_grn.empty:
             idx2 = st.selectbox("Pilih Nomor PO (Admin GRN):", options=filtered_grn.index,
                                 format_func=lambda i: f"{filtered_grn.loc[i, 'Nomor_PO']} - {filtered_grn.loc[i, 'Nama_Vendor']}")
-            make_download_link(filtered_grn.loc[idx2, "File_GRN_Path"]) 
+            make_download_link(filtered_grn.loc[idx2, "File_GRN_Path"])
+
 
 
 
