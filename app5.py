@@ -165,5 +165,17 @@ else:
         st.success(f"Duplikat dihapus. Sebelum: {before}, Sesudah: {after}")
         st.stop()
 
+    # Tampilkan semua data user
+    st.subheader("📊 Rekap Data User & Status GRN")
+    if df.empty:
+        st.info("Belum ada data.")
+    else:
+        tampil_df = df[["Tanggal", "Nomor_PO", "Nama_Vendor", "Status_GRN"]].copy()
+        tampil_df["Status_GRN"] = tampil_df["Status_GRN"].replace({
+            "Belum Dibuat": "⏳ Belum Dibuat",
+            "Sudah Dibuat": "✅ Sudah Dibuat"
+        })
+        st.dataframe(tampil_df, use_container_width=True)
+
 
 
