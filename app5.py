@@ -22,7 +22,6 @@ def load_data():
 def save_data(df):
     df.to_csv(DATA_FILE, index=False)
 
-# --- Fungsi untuk tombol download file ---
 def make_download_link(file_path):
     if pd.isna(file_path) or file_path == "" or not os.path.exists(file_path):
         return None
@@ -30,17 +29,17 @@ def make_download_link(file_path):
     with open(file_path, "rb") as f:
         return st.download_button(label=f"Download {filename}", data=f, file_name=filename)
 
-# --- Inisialisasi Session State untuk login ---
+# --- Session State untuk login admin ---
 if "admin_logged_in" not in st.session_state:
     st.session_state["admin_logged_in"] = False
 
-# --- Load data awal ---
+# --- Load Data ---
 df = load_data()
 
-# --- Judul aplikasi ---
+# --- Judul ---
 st.title("📦 Dashboard GRN - Penerimaan Barang")
 
-# --- Sidebar untuk Login Admin ---
+# --- Sidebar Login ---
 st.sidebar.title("Admin Login")
 
 if not st.session_state["admin_logged_in"]:
@@ -49,27 +48,24 @@ if not st.session_state["admin_logged_in"]:
     if st.sidebar.button("Login"):
         if username == "admin" and password == "admin123":
             st.session_state["admin_logged_in"] = True
-            st.experimental_rerun()
+            st.experimental_rerun()  # Hanya di sini dipanggil rerun
         else:
             st.sidebar.error("Username atau password salah.")
 else:
     st.sidebar.success("Anda login sebagai admin.")
     if st.sidebar.button("Logout"):
         st.session_state["admin_logged_in"] = False
-        st.experimental_rerun()
+        st.experimental_rerun()  # Hanya di sini dipanggil rerun
 
 # --- Konten berdasarkan role ---
 if st.session_state["admin_logged_in"]:
-    # ADMIN PANEL
+    # Panel Admin
     st.subheader("📊 Rekap Data User & Status GRN")
     if df.empty:
         st.info("Belum ada data.")
     else:
         def status_badge(status):
-            if status == "Sudah Dibuat":
-                return f"✅ {status}"
-            else:
-                return f"❌ {status}"
+            return "✅ Sudah Dibuat" if status == "Sudah Dibuat" else "❌ Belum Dibuat"
 
         display_df = df.copy()
         display_df["Status_GRN"] = display_df["Status_GRN"].apply(status_badge)
@@ -127,7 +123,7 @@ if st.session_state["admin_logged_in"]:
         st.experimental_rerun()
 
 else:
-    # USER INPUT
+    # Panel User
     st.subheader("Input Barang Diterima (User)")
     with st.form("form_input"):
         tanggal = st.date_input("Tanggal Diterima", value=datetime.today())
