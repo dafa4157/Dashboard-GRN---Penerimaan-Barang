@@ -5,7 +5,7 @@ from datetime import datetime
 
 DATA_FILE = "data.csv"
 
-# --- Load & Save Data ---
+# Fungsi load data dari CSV
 def load_data():
     if os.path.exists(DATA_FILE):
         df = pd.read_csv(DATA_FILE)
@@ -19,9 +19,11 @@ def load_data():
         df.to_csv(DATA_FILE, index=False)
         return df
 
+# Fungsi simpan data ke CSV
 def save_data(df):
     df.to_csv(DATA_FILE, index=False)
 
+# Fungsi buat tombol download file
 def make_download_link(file_path):
     if pd.isna(file_path) or file_path == "" or not os.path.exists(file_path):
         return None
@@ -29,37 +31,35 @@ def make_download_link(file_path):
     with open(file_path, "rb") as f:
         return st.download_button(label=f"Download {filename}", data=f, file_name=filename)
 
-# --- Session state for login ---
+# Inisialisasi session_state login admin
 if "admin_logged_in" not in st.session_state:
     st.session_state["admin_logged_in"] = False
 
-# --- Load data ---
+# Load data awal
 df = load_data()
 
-# --- Title ---
 st.title("📦 Dashboard GRN - Penerimaan Barang")
 
-# --- Sidebar Login ---
+# Sidebar untuk login admin
 st.sidebar.title("Admin Login")
-
 if not st.session_state["admin_logged_in"]:
     username = st.sidebar.text_input("Username")
     password = st.sidebar.text_input("Password", type="password")
     if st.sidebar.button("Login"):
         if username == "admin" and password == "admin123":
             st.session_state["admin_logged_in"] = True
-            st.experimental_rerun()
+            st.experimental_rerun()  # Rerun hanya setelah login berhasil
         else:
             st.sidebar.error("Username atau password salah.")
 else:
     st.sidebar.success("Anda login sebagai admin.")
     if st.sidebar.button("Logout"):
         st.session_state["admin_logged_in"] = False
-        st.experimental_rerun()
+        st.experimental_rerun()  # Rerun setelah logout
 
-# --- Content berdasarkan role ---
+# Konten utama berdasarkan role
 if st.session_state["admin_logged_in"]:
-    # ADMIN PANEL
+    # Panel admin
     st.subheader("📊 Rekap Data User & Status GRN")
     if df.empty:
         st.info("Belum ada data.")
@@ -69,7 +69,6 @@ if st.session_state["admin_logged_in"]:
                 return f"✅ {status}"
             else:
                 return f"❌ {status}"
-
         display_df = df.copy()
         display_df["Status_GRN"] = display_df["Status_GRN"].apply(status_badge)
         st.table(display_df[["Tanggal", "Nomor_PO", "Nama_Vendor", "Status_GRN"]])
@@ -93,7 +92,6 @@ if st.session_state["admin_logged_in"]:
         idx = opsi.index(selected_row)
         selected_data = filtered_admin_df.iloc[idx]
 
-        # Link download PO file
         po_download = make_download_link(selected_data["File_PO_Path"])
         if po_download is None:
             st.info("File PO belum diupload user.")
@@ -112,7 +110,7 @@ if st.session_state["admin_logged_in"]:
                 df.loc[df["Nomor_PO"] == selected_data["Nomor_PO"], "File_GRN_Path"] = grn_path
                 save_data(df)
                 st.success("File GRN berhasil diupload dan status diperbarui.")
-                st.experimental_rerun()
+                st.experimental_rerun()  # rerun setelah upload sukses
             else:
                 st.warning("Silakan pilih file GRN terlebih dahulu.")
 
@@ -126,7 +124,7 @@ if st.session_state["admin_logged_in"]:
         st.experimental_rerun()
 
 else:
-    # USER INPUT
+    # Panel user input
     st.subheader("Input Barang Diterima (User)")
     with st.form("form_input"):
         tanggal = st.date_input("Tanggal Diterima", value=datetime.today())
@@ -164,8 +162,8 @@ else:
                 }
                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                 save_data(df)
-                st.success("Data berhasil disimpan. Silakan reload halaman.")
-                # Jangan pakai st.stop(), biar session state tetap aman
+                st.success("Data berhasil disimpan.")
+                st.experimental_rerun()  # Rerun setelah submit
 
     st.subheader("📋 Daftar Barang & Status GRN")
     if df.empty:
