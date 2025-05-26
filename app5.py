@@ -48,14 +48,14 @@ if not st.session_state["admin_logged_in"]:
     if st.sidebar.button("Login"):
         if username == "admin" and password == "admin123":
             st.session_state["admin_logged_in"] = True
-            st.rerun()  # Rerun hanya setelah login berhasil
+            st.experimental_rerun()  # <- fix
         else:
             st.sidebar.error("Username atau password salah.")
 else:
     st.sidebar.success("Anda login sebagai admin.")
     if st.sidebar.button("Logout"):
         st.session_state["admin_logged_in"] = False
-        st.rerun()  # Rerun setelah logout
+        st.experimental_rerun()  # <- fix
 
 # Konten utama berdasarkan role
 if st.session_state["admin_logged_in"]:
@@ -65,10 +65,8 @@ if st.session_state["admin_logged_in"]:
         st.info("Belum ada data.")
     else:
         def status_badge(status):
-            if status == "Sudah Dibuat":
-                return f"✅ {status}"
-            else:
-                return f"❌ {status}"
+            return f"✅ {status}" if status == "Sudah Dibuat" else f"❌ {status}"
+
         display_df = df.copy()
         display_df["Status_GRN"] = display_df["Status_GRN"].apply(status_badge)
         st.table(display_df[["Tanggal", "Nomor_PO", "Nama_Vendor", "Status_GRN"]])
@@ -110,7 +108,7 @@ if st.session_state["admin_logged_in"]:
                 df.loc[df["Nomor_PO"] == selected_data["Nomor_PO"], "File_GRN_Path"] = grn_path
                 save_data(df)
                 st.success("File GRN berhasil diupload dan status diperbarui.")
-                st.rerun()  # rerun setelah upload sukses
+                st.experimental_rerun()  # <- fix
             else:
                 st.warning("Silakan pilih file GRN terlebih dahulu.")
 
@@ -121,7 +119,7 @@ if st.session_state["admin_logged_in"]:
         save_data(df)
         after = len(df)
         st.success(f"Duplikat dihapus. Sebelum: {before}, Sesudah: {after}")
-        st.rerun()
+        st.experimental_rerun()  # <- fix
 
 else:
     # Panel user input
@@ -163,7 +161,7 @@ else:
                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                 save_data(df)
                 st.success("Data berhasil disimpan.")
-                st.rerun()  # Rerun setelah submit
+                st.experimental_rerun()  # <- fix
 
     st.subheader("📋 Daftar Barang & Status GRN")
     if df.empty:
