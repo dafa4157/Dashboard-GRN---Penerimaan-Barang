@@ -41,18 +41,11 @@ def colored_status(status):
 if "admin_logged_in" not in st.session_state:
     st.session_state["admin_logged_in"] = False
 
-# --- Auto refresh setelah update ---
-if "data_updated" not in st.session_state:
-    st.session_state["data_updated"] = False
-if st.session_state["data_updated"]:
-    st.session_state["data_updated"] = False
-    st.experimental_rerun()
-
 # --- Load Data ---
 df = load_data()
 
 # --- Judul ---
-st.title("\ud83d\udce6 Dashboard GRN - Penerimaan Barang")
+st.title("Dashboard GRN - Penerimaan Barang")
 
 # --- Admin Section ---
 if st.session_state["admin_logged_in"]:
@@ -62,7 +55,8 @@ if st.session_state["admin_logged_in"]:
         st.session_state["admin_logged_in"] = False
         st.experimental_rerun()
 
-    st.subheader("\ud83d\udcca Rekap Data User & Status GRN")
+    # Rekap Data User & Status GRN
+    st.subheader("Rekap Data User & Status GRN")
     if df.empty:
         st.info("Belum ada data.")
     else:
@@ -70,7 +64,8 @@ if st.session_state["admin_logged_in"]:
         df_display["Status"] = df_display["Status_GRN"].apply(colored_status)
         st.dataframe(df_display[["Tanggal", "Nomor_PO", "Nama_Vendor", "Status"]])
 
-    st.subheader("\ud83d\udcc5 Cari File PO User & Upload GRN")
+    # Pencarian dan Update GRN
+    st.subheader("Cari File PO User & Upload GRN")
 
     search_po = st.text_input("Cari Nomor PO").strip()
     search_vendor = st.text_input("Cari Nama Vendor").strip()
@@ -109,16 +104,17 @@ if st.session_state["admin_logged_in"]:
             df.loc[df["Nomor_PO"] == selected_data["Nomor_PO"], "File_GRN_Path"] = grn_path
             save_data(df)
             st.success("File GRN berhasil diupload dan status diperbarui.")
-            st.session_state["data_updated"] = True
+            st.experimental_rerun()
 
-    st.subheader("\ud83e\ude79 Hapus Duplikat Nomor PO")
+    # Hapus duplikat
+    st.subheader("Hapus Duplikat Nomor PO")
     if st.button("Hapus Duplikat"):
         before = len(df)
         df = df.drop_duplicates(subset="Nomor_PO", keep="first")
         save_data(df)
         after = len(df)
         st.success(f"Duplikat dihapus. Sebelum: {before}, Sesudah: {after}")
-        st.session_state["data_updated"] = True
+        st.experimental_rerun()
 
 # --- User Section ---
 else:
@@ -160,9 +156,9 @@ else:
                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                 save_data(df)
                 st.success("Data berhasil disimpan.")
-                st.session_state["data_updated"] = True
+                st.experimental_rerun()
 
-    st.subheader("\ud83d\udccb Daftar Barang & Status GRN")
+    st.subheader("Daftar Barang & Status GRN")
     if df.empty:
         st.info("Belum ada data.")
     else:
