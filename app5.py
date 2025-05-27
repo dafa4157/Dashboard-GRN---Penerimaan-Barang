@@ -152,8 +152,8 @@ else:
                 }
                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                 save_data(df)
-                st.success("Data berhasil disimpan. Silakan reload halaman.")
-                st.stop()
+                st.success("Data berhasil disimpan.")
+                st.experimental_rerun()
 
     st.subheader("📋 Daftar Barang & Status GRN")
     if df.empty:
@@ -184,6 +184,7 @@ if not st.session_state["admin_logged_in"]:
             st.experimental_rerun()
         else:
             st.sidebar.error("Username atau password salah.")
+
 
 
 
