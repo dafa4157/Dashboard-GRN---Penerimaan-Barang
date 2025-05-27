@@ -3,6 +3,11 @@ import pandas as pd
 import os
 from datetime import datetime
 
+# --- Konfigurasi Admin Login ---
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "admin123"
+
+# --- File Data ---
 DATA_FILE = "data.csv"
 
 # --- Load & Save Data ---
@@ -85,9 +90,9 @@ if st.session_state["admin_logged_in"]:
         opsi = filtered_admin_df.apply(lambda r: f"Nomor PO: {r['Nomor_PO']} - Vendor: {r['Nama_Vendor']}", axis=1).tolist()
         selected_row = st.selectbox("Pilih data:", opsi)
         idx = opsi.index(selected_row)
-        selected_data = filtered_admin_df.iloc[idx]
+        selected_data = filtered_admin_df.iloc[[idx]].copy()  # <-- fix: pakai double bracket agar DataFrame
 
-        make_download_link(selected_data["File_PO_Path"])
+        make_download_link(selected_data.iloc[0]["File_PO_Path"])
 
         file_grn = st.file_uploader("Upload File GRN (PDF/JPG/PNG)", type=["pdf", "jpg", "png"])
         if st.button("Upload File GRN dan Update Status"):
@@ -95,13 +100,13 @@ if st.session_state["admin_logged_in"]:
             if file_grn:
                 grn_dir = "uploaded_grn"
                 os.makedirs(grn_dir, exist_ok=True)
-                safe_name = f"{selected_data['Nomor_PO']}_{file_grn.name}"
+                safe_name = f"{selected_data.iloc[0]['Nomor_PO']}_{file_grn.name}"
                 grn_path = os.path.join(grn_dir, safe_name).replace("\\", "/")
                 with open(grn_path, "wb") as f:
                     f.write(file_grn.getbuffer())
 
-            df.loc[df["Nomor_PO"] == selected_data["Nomor_PO"], "Status_GRN"] = "Sudah Dibuat"
-            df.loc[df["Nomor_PO"] == selected_data["Nomor_PO"], "File_GRN_Path"] = grn_path
+            df.loc[df["Nomor_PO"] == selected_data.iloc[0]["Nomor_PO"], "Status_GRN"] = "Sudah Dibuat"
+            df.loc[df["Nomor_PO"] == selected_data.iloc[0]["Nomor_PO"], "File_GRN_Path"] = grn_path
             save_data(df)
             st.success("File GRN berhasil diupload dan status diperbarui.")
             st.experimental_rerun()
@@ -177,16 +182,17 @@ else:
             make_download_link(filtered_grn.loc[idx2, "File_GRN_Path"])
 
 # --- Admin Login Sidebar ---
-st.sidebar.title("Admin Login")
+st.sidebar.title("🔐 Admin Login")
 if not st.session_state["admin_logged_in"]:
     username = st.sidebar.text_input("Username")
     password = st.sidebar.text_input("Password", type="password")
     if st.sidebar.button("Login"):
-        if username == "admin" and password == "admin123":
+        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
             st.session_state["admin_logged_in"] = True
             st.experimental_rerun()
         else:
             st.sidebar.error("Username atau password salah.")
+
 
 
 
