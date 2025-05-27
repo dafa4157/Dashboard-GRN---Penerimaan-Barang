@@ -67,14 +67,17 @@ if st.session_state["admin_logged_in"]:
     # Fungsi pencarian dan update GRN
     st.subheader("📥 Cari File PO User & Upload GRN")
 
-    search_po = st.text_input("Cari Nomor PO")
-    search_vendor = st.text_input("Cari Nama Vendor")
+    search_po = st.text_input("Cari Nomor PO").strip()
+    search_vendor = st.text_input("Cari Nama Vendor").strip()
+
     filtered_admin_df = df.copy()
+    filtered_admin_df["Nomor_PO"] = filtered_admin_df["Nomor_PO"].astype(str).fillna("")
+    filtered_admin_df["Nama_Vendor"] = filtered_admin_df["Nama_Vendor"].astype(str).fillna("")
 
     if search_po:
-        filtered_admin_df = filtered_admin_df[filtered_admin_df["Nomor_PO"].astype(str).str.contains(search_po, case=False)]
+        filtered_admin_df = filtered_admin_df[filtered_admin_df["Nomor_PO"].str.contains(search_po, case=False, na=False)]
     if search_vendor:
-        filtered_admin_df = filtered_admin_df[filtered_admin_df["Nama_Vendor"].str.contains(search_vendor, case=False)]
+        filtered_admin_df = filtered_admin_df[filtered_admin_df["Nama_Vendor"].str.contains(search_vendor, case=False, na=False)]
 
     if filtered_admin_df.empty:
         st.warning("Tidak ada hasil pencarian.")
