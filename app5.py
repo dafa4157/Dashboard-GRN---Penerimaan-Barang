@@ -53,7 +53,7 @@ if st.session_state["admin_logged_in"]:
     st.sidebar.success("Anda login sebagai admin.")
     if st.sidebar.button("Logout"):
         st.session_state["admin_logged_in"] = False
-        st.rerun()
+        st.experimental_rerun()
 
     # 📊 Rekap Data User & Status GRN (hanya di admin)
     st.subheader("📊 Rekap Data User & Status GRN")
@@ -101,7 +101,7 @@ if st.session_state["admin_logged_in"]:
             df.loc[df["Nomor_PO"] == selected_data["Nomor_PO"], "File_GRN_Path"] = grn_path
             save_data(df)
             st.success("File GRN berhasil diupload dan status diperbarui.")
-            st.rerun()
+            st.experimental_rerun()
 
     # Hapus duplikat
     st.subheader("🧹 Hapus Duplikat Nomor PO")
@@ -111,7 +111,7 @@ if st.session_state["admin_logged_in"]:
         save_data(df)
         after = len(df)
         st.success(f"Duplikat dihapus. Sebelum: {before}, Sesudah: {after}")
-        st.rerun()
+        st.experimental_rerun()
 
 # --- User Section ---
 else:
@@ -181,11 +181,9 @@ if not st.session_state["admin_logged_in"]:
     if st.sidebar.button("Login"):
         if username == "admin" and password == "admin123":
             st.session_state["admin_logged_in"] = True
-            st.rerun()
+            st.experimental_rerun()
         else:
             st.sidebar.error("Username atau password salah.")
-
-
 
 
 
