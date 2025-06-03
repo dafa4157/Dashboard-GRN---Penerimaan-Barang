@@ -49,13 +49,12 @@ st.title("Dashboard GRN - Penerimaan Barang")
 
 # --- Admin Section ---
 if st.session_state["admin_logged_in"]:
-
     st.sidebar.success("Anda login sebagai admin.")
+    
     if st.sidebar.button("Logout"):
         st.session_state["admin_logged_in"] = False
         st.experimental_rerun()
 
-    # Rekap Data User & Status GRN
     st.subheader("Rekap Data User & Status GRN")
     if df.empty:
         st.info("Belum ada data.")
@@ -64,7 +63,6 @@ if st.session_state["admin_logged_in"]:
         df_display["Status"] = df_display["Status_GRN"].apply(colored_status)
         st.dataframe(df_display[["Tanggal", "Nomor_PO", "Nama_Vendor", "Status"]])
 
-    # Pencarian dan Update GRN
     st.subheader("Cari File PO User & Upload GRN")
 
     search_po = st.text_input("Cari Nomor PO").strip()
@@ -106,7 +104,6 @@ if st.session_state["admin_logged_in"]:
             st.success("File GRN berhasil diupload dan status diperbarui.")
             st.experimental_rerun()
 
-    # Hapus duplikat
     st.subheader("Hapus Duplikat Nomor PO")
     if st.button("Hapus Duplikat"):
         before = len(df)
@@ -166,14 +163,20 @@ else:
 
         filtered_df = df[(df["File_PO_Path"] != "") & df["File_PO_Path"].notna()]
         if not filtered_df.empty:
-            idx = st.selectbox("Pilih Nomor PO (User Upload):", options=filtered_df.index,
-                               format_func=lambda i: f"{filtered_df.loc[i, 'Nomor_PO']} - {filtered_df.loc[i, 'Nama_Vendor']}")
+            idx = st.selectbox(
+                "Pilih Nomor PO (User Upload):",
+                options=filtered_df.index,
+                format_func=lambda i: f"{filtered_df.loc[i, 'Nomor_PO']} - {filtered_df.loc[i, 'Nama_Vendor']}"
+            )
             make_download_link(filtered_df.loc[idx, "File_PO_Path"])
 
         filtered_grn = df[(df["File_GRN_Path"] != "") & df["File_GRN_Path"].notna()]
         if not filtered_grn.empty:
-            idx2 = st.selectbox("Pilih Nomor PO (Admin GRN):", options=filtered_grn.index,
-                                format_func=lambda i: f"{filtered_grn.loc[i, 'Nomor_PO']} - {filtered_grn.loc[i, 'Nama_Vendor']}")
+            idx2 = st.selectbox(
+                "Pilih Nomor PO (Admin GRN):",
+                options=filtered_grn.index,
+                format_func=lambda i: f"{filtered_grn.loc[i, 'Nomor_PO']} - {filtered_grn.loc[i, 'Nama_Vendor']}"
+            )
             make_download_link(filtered_grn.loc[idx2, "File_GRN_Path"])
 
 # --- Admin Login Sidebar ---
@@ -187,6 +190,7 @@ if not st.session_state["admin_logged_in"]:
             st.experimental_rerun()
         else:
             st.sidebar.error("Username atau password salah.")
+
 
 
 
