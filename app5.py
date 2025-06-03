@@ -1,210 +1,190 @@
 import streamlit as st
 import pandas as pd
-import os
 from datetime import datetime
+import os
 
-# --- Konstanta ---
-DATA_FILE = "data.csv"
+CSV_FILE = "data_project.csv"
+UPLOAD_FOLDER = "uploads"
 
-# --- Fungsi ---
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
 def load_data():
-    if os.path.exists(DATA_FILE):
-        try:
-            df = pd.read_csv(DATA_FILE)
-            expected_cols = ["Tanggal", "Nomor_PO", "Nama_Vendor", "Status_GRN", "File_PO_Path", "File_GRN_Path"]
-            for col in expected_cols:
-                if col not in df.columns:
-                    df[col] = ""
-            return df
-        except Exception as e:
-            st.error(f"Gagal memuat data: {e}")
-            return pd.DataFrame(columns=expected_cols)
+    if os.path.exists(CSV_FILE):
+        return pd.read_csv(CSV_FILE)
     else:
-        df = pd.DataFrame(columns=["Tanggal", "Nomor_PO", "Nama_Vendor", "Status_GRN", "File_PO_Path", "File_GRN_Path"])
-        df.to_csv(DATA_FILE, index=False)
+        df = pd.DataFrame(columns=[
+            'Nama Project', 'Status', 'Tanggal Upload Pertama',
+            'Tanggal Update Terakhir', 'Tanggal Selesai', 'Selesai'
+        ])
+        df.to_csv(CSV_FILE, index=False)
         return df
 
 def save_data(df):
-    try:
-        df.to_csv(DATA_FILE, index=False)
-    except Exception as e:
-        st.error(f"Gagal menyimpan data: {e}")
+    df.to_csv(CSV_FILE, index=False)
 
-def make_download_link(file_path):
-    if pd.isna(file_path) or file_path == "" or not os.path.exists(file_path):
-        return None
-    filename = os.path.basename(file_path)
-    with open(file_path, "rb") as f:
-        return st.download_button(label=f"Download {filename}", data=f, file_name=filename)
+def hapus_file_project(nama_project):
+    nama_project_lower = nama_project.lower()
+    files_dihapus = []
+    for f in os.listdir(UPLOAD_FOLDER):
+        if f.lower().startswith(f"{nama_project_lower}__"):
+            filepath = os.path.join(UPLOAD_FOLDER, f)
+            try:
+                os.remove(filepath)
+                files_dihapus.append(f)
+            except Exception as e:
+                st.error(f"Gagal menghapus file '{f}': {e}")
+    return files_dihapus
 
-def colored_status(status):
-    if status == "Sudah Dibuat":
-        return "✅ Sudah Dibuat"
-    elif status == "Belum Dibuat":
-        return "❌ Belum Dibuat"
-    else:
-        return status
+st.title("📋 Manajemen Project")
 
-# --- Setup session state ---
-if "admin_logged_in" not in st.session_state:
-    st.session_state["admin_logged_in"] = False
-if "selected_po_index" not in st.session_state:
-    st.session_state["selected_po_index"] = None
-
-# --- Load data ---
 df = load_data()
 
-# --- Judul utama ---
-st.title("Dashboard GRN - Penerimaan Barang")
-
-# --- Admin Section ---
-if st.session_state["admin_logged_in"]:
-    st.sidebar.success("Anda login sebagai admin.")
-    if st.sidebar.button("Logout"):
-        st.session_state["admin_logged_in"] = False
-        st.experimental_rerun()
-
-    st.subheader("Rekap Data User & Status GRN")
-    if df.empty:
-        st.info("Belum ada data.")
-    else:
-        df_display = df.copy()
-        df_display["Status"] = df_display["Status_GRN"].apply(colored_status)
-        st.dataframe(df_display[["Tanggal", "Nomor_PO", "Nama_Vendor", "Status"]])
-
-    st.subheader("Cari File PO User & Upload GRN")
-    search_po = st.text_input("Cari Nomor PO").strip()
-    search_vendor = st.text_input("Cari Nama Vendor").strip()
-
-    filtered_df = df.copy()
-    filtered_df["Nomor_PO"] = filtered_df["Nomor_PO"].astype(str)
-    filtered_df["Nama_Vendor"] = filtered_df["Nama_Vendor"].astype(str)
-
-    if search_po:
-        filtered_df = filtered_df[filtered_df["Nomor_PO"].str.contains(search_po, case=False, na=False)]
-    if search_vendor:
-        filtered_df = filtered_df[filtered_df["Nama_Vendor"].str.contains(search_vendor, case=False, na=False)]
-
-    if not filtered_df.empty:
-        options = filtered_df.apply(lambda r: f"Nomor PO: {r['Nomor_PO']} - Vendor: {r['Nama_Vendor']}", axis=1).tolist()
-        selected_option = st.selectbox("Pilih data:", options)
-        selected_index = options.index(selected_option)
-        selected_data = filtered_df.iloc[selected_index]
-        st.session_state["selected_po_index"] = selected_data.name
-
-        download_button = make_download_link(selected_data["File_PO_Path"])
-        if download_button is None:
-            st.info("File PO belum tersedia atau tidak ditemukan.")
-
-        file_grn = st.file_uploader("Upload File GRN (PDF/JPG/PNG)", type=["pdf", "jpg", "png"])
-        if st.button("Upload File GRN dan Update Status"):
-            if not file_grn:
-                st.warning("Silakan upload file GRN terlebih dahulu.")
-            else:
-                idx = st.session_state["selected_po_index"]
-                selected_data = df.loc[idx]
-
-                grn_dir = "uploaded_grn"
-                os.makedirs(grn_dir, exist_ok=True)
-                safe_name = f"{selected_data['Nomor_PO']}_{file_grn.name}"
-                grn_path = os.path.join(grn_dir, safe_name).replace("\\", "/")
-                with open(grn_path, "wb") as f:
-                    f.write(file_grn.getbuffer())
-
-                df.loc[idx, "Status_GRN"] = "Sudah Dibuat"
-                df.loc[idx, "File_GRN_Path"] = grn_path
-                save_data(df)
-                st.success("File GRN berhasil diupload dan status diperbarui.")
-                st.experimental_rerun()
-    else:
-        st.warning("Tidak ada hasil pencarian.")
-
-    st.subheader("Hapus Duplikat Nomor PO")
-    if st.button("Hapus Duplikat"):
-        before = len(df)
-        df = df.drop_duplicates(subset="Nomor_PO", keep="first")
-        save_data(df)
-        after = len(df)
-        st.success(f"Duplikat dihapus. Sebelum: {before}, Sesudah: {after}")
-        st.experimental_rerun()
-
-# --- User Section ---
-else:
-    st.subheader("Input Barang Diterima (User)")
-    with st.form("form_input"):
-        tanggal = st.date_input("Tanggal Diterima", value=datetime.today())
-        nomor_po = st.text_input("Nomor PO")
-        vendor = st.text_input("Nama Vendor")
-        file_po = st.file_uploader("Upload File PO (PDF/JPG/PNG)", type=["pdf", "jpg", "png"])
-        submitted = st.form_submit_button("Simpan Data")
-
-        if submitted:
-            nomor_po = nomor_po.strip()
-            vendor = vendor.strip()
-            if nomor_po == "" or vendor == "":
-                st.warning("Nomor PO dan Nama Vendor harus diisi.")
-            elif not nomor_po.isdigit():
-                st.error("Nomor PO hanya boleh berisi angka.")
-            elif nomor_po in df["Nomor_PO"].astype(str).values:
-                st.error(f"Nomor PO {nomor_po} sudah ada.")
-            else:
-                po_path = ""
-                if file_po:
-                    po_dir = "uploaded_po"
-                    os.makedirs(po_dir, exist_ok=True)
-                    safe_name = f"{nomor_po}_{file_po.name}"
-                    po_path = os.path.join(po_dir, safe_name).replace("\\", "/")
-                    with open(po_path, "wb") as f:
-                        f.write(file_po.getbuffer())
-
-                new_row = {
-                    "Tanggal": tanggal.strftime("%Y-%m-%d"),
-                    "Nomor_PO": nomor_po,
-                    "Nama_Vendor": vendor,
-                    "Status_GRN": "Belum Dibuat",
-                    "File_PO_Path": po_path,
-                    "File_GRN_Path": ""
-                }
-                df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-                save_data(df)
-                st.success("Data berhasil disimpan.")
-                st.experimental_rerun()
-
-    st.subheader("Daftar Barang & Status GRN")
-    if df.empty:
-        st.info("Belum ada data.")
-    else:
-        st.write(df[["Tanggal", "Nomor_PO", "Nama_Vendor", "Status_GRN"]])
-
-        filtered_df = df[(df["File_PO_Path"] != "") & df["File_PO_Path"].notna()]
-        if not filtered_df.empty:
-            idx = st.selectbox("Pilih Nomor PO (User Upload):", options=filtered_df.index,
-                               format_func=lambda i: f"{filtered_df.loc[i, 'Nomor_PO']} - {filtered_df.loc[i, 'Nama_Vendor']}")
-            download_button = make_download_link(filtered_df.loc[idx, "File_PO_Path"])
-            if download_button is None:
-                st.info("File PO belum tersedia atau tidak ditemukan.")
-
-        filtered_grn = df[(df["File_GRN_Path"] != "") & df["File_GRN_Path"].notna()]
-        if not filtered_grn.empty:
-            idx2 = st.selectbox("Pilih Nomor PO (Admin GRN):", options=filtered_grn.index,
-                                format_func=lambda i: f"{filtered_grn.loc[i, 'Nomor_PO']} - {filtered_grn.loc[i, 'Nama_Vendor']}")
-            download_button2 = make_download_link(filtered_grn.loc[idx2, "File_GRN_Path"])
-            if download_button2 is None:
-                st.info("File GRN belum tersedia atau tidak ditemukan.")
-
-# --- Admin Login ---
-st.sidebar.title("Admin Login")
-if not st.session_state["admin_logged_in"]:
-    username = st.sidebar.text_input("Username")
-    password = st.sidebar.text_input("Password", type="password")
-    if st.sidebar.button("Login"):
-        if username == "admin" and password == "admin123":
-            st.session_state["admin_logged_in"] = True
-            st.experimental_rerun()
+st.subheader("➕ Tambah Project Baru")
+with st.form("form_tambah"):
+    nama_baru = st.text_input("Nama Project Baru")
+    submitted = st.form_submit_button("Tambah")
+    if submitted:
+        if nama_baru.strip() == "":
+            st.warning("Nama project tidak boleh kosong.")
+        elif nama_baru in df['Nama Project'].values:
+            st.warning("Project sudah ada.")
         else:
-            st.sidebar.error("Username atau password salah.")
+            new_row = {
+                'Nama Project': nama_baru,
+                'Status': 'Belum Selesai',
+                'Tanggal Upload Pertama': None,
+                'Tanggal Update Terakhir': None,
+                'Tanggal Selesai': None,
+                'Selesai': False
+            }
+            df.loc[len(df)] = new_row
+            save_data(df)
+            st.success(f"Project '{nama_baru}' berhasil ditambahkan. Silakan refresh halaman untuk melihat perubahan.")
 
+st.subheader("🔧 Kelola Project")
 
+if not df.empty:
+    selected_index = st.selectbox("Pilih Project", df.index, format_func=lambda i: df.at[i, 'Nama Project'])
 
+    st.write(f"**Nama Project:** {df.at[selected_index, 'Nama Project']}")
+    st.write(f"**Status:** {df.at[selected_index, 'Status']}")
+    st.write(f"**Tanggal Upload Pertama:** {df.at[selected_index, 'Tanggal Upload Pertama']}")
+    st.write(f"**Tanggal Update Terakhir:** {df.at[selected_index, 'Tanggal Update Terakhir']}")
+    st.write(f"**Tanggal Selesai:** {df.at[selected_index, 'Tanggal Selesai']}")
 
+    uploaded_files = st.file_uploader("Upload file (boleh lebih dari satu)", key=selected_index, accept_multiple_files=True)
+    if uploaded_files:
+        nama_project = df.at[selected_index, 'Nama Project']
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+        for file in uploaded_files:
+            filename = f"{nama_project}__{file.name}"
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+            with open(filepath, "wb") as f:
+                f.write(file.read())
+        
+        if pd.isna(df.at[selected_index, 'Tanggal Upload Pertama']) or df.at[selected_index, 'Tanggal Upload Pertama'] in [None, 'None', 'nan']:
+            df.at[selected_index, 'Tanggal Upload Pertama'] = now
+        df.at[selected_index, 'Tanggal Update Terakhir'] = now
+        if not df.at[selected_index, 'Selesai']:
+            df.at[selected_index, 'Status'] = 'Belum Selesai'
+
+        save_data(df)
+        st.success(f"{len(uploaded_files)} file berhasil diunggah dan disimpan (overwrite jika sebelumnya ada).")
+
+    if df.at[selected_index, 'Selesai']:
+        st.checkbox("✅ Project Telah Selesai", value=True, disabled=True)
+    else:
+        if df.at[selected_index, 'Tanggal Upload Pertama'] in [None, 'None', 'nan'] or pd.isna(df.at[selected_index, 'Tanggal Upload Pertama']):
+            st.info("🔒 Upload file terlebih dahulu sebelum menandai project sebagai selesai.")
+        else:
+            if st.checkbox("✔️ Tandai sebagai Selesai", key=f"selesai_{selected_index}"):
+                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                df.at[selected_index, 'Status'] = "Selesai"
+                df.at[selected_index, 'Tanggal Selesai'] = now
+                df.at[selected_index, 'Tanggal Update Terakhir'] = now
+                df.at[selected_index, 'Selesai'] = True
+                save_data(df)
+                st.success("✅ Project ditandai sebagai selesai. Silakan refresh halaman untuk melihat perubahan.")
+
+    if st.button("🗑 Hapus Project Ini"):
+        hapus_nama = df.at[selected_index, 'Nama Project']
+        files_dihapus = hapus_file_project(hapus_nama)
+        if files_dihapus:
+            st.write(f"File yang dihapus: {', '.join(files_dihapus)}")
+        else:
+            st.info("Tidak ada file terkait project yang ditemukan untuk dihapus.")
+        df.drop(index=selected_index, inplace=True)
+        df.reset_index(drop=True, inplace=True)
+        save_data(df)
+        st.success(f"Project '{hapus_nama}' dan file terkait berhasil dihapus.")
+        st.experimental_rerun()
+else:
+    st.info("Belum ada project. Tambahkan project terlebih dahulu.")
+
+st.subheader("🔍 Cari dan Unduh File Project")
+search_file = st.text_input("Masukkan nama file atau project")
+if search_file:
+    matching_files = [f for f in os.listdir(UPLOAD_FOLDER) if search_file.lower() in f.lower()]
+    if matching_files:
+        for file in matching_files:
+            filepath = os.path.join(UPLOAD_FOLDER, file)
+            nama_tampil = file.split("__", 1)[-1]
+            with open(filepath, "rb") as f:
+                st.download_button(f"⬇️ {nama_tampil}", f, file_name=nama_tampil)
+    else:
+        st.warning("❌ Tidak ditemukan file dengan nama tersebut.")
+
+st.subheader("📊 Tabel Semua Project")
+if df.empty:
+    st.write("Belum ada data project.")
+else:
+    st.dataframe(df.drop(columns=["Selesai"]), use_container_width=True)
+
+st.subheader("📈 Grafik Jumlah Project per Hari")
+if not df.empty and df['Tanggal Upload Pertama'].notna().any():
+    df['Tanggal Upload Pertama'] = pd.to_datetime(df['Tanggal Upload Pertama'], errors='coerce').dt.date
+    df_hari = df.dropna(subset=['Tanggal Upload Pertama']).copy()
+    df_hari['Tanggal'] = df_hari['Tanggal Upload Pertama']
+
+    project_per_day = df_hari.groupby('Tanggal').size().reset_index(name='Jumlah Project')
+    project_per_day = project_per_day.sort_values('Tanggal')
+
+    full_range = pd.DataFrame({'Tanggal': pd.date_range(start=project_per_day['Tanggal'].min(),
+                                                       end=datetime.now().date())})
+    full_range['Tanggal'] = full_range['Tanggal'].dt.date
+
+    merged = full_range.merge(project_per_day, on='Tanggal', how='left').fillna(0)
+    merged['Jumlah Project'] = merged['Jumlah Project'].astype(int)
+
+    st.line_chart(data=merged, x='Tanggal', y='Jumlah Project', use_container_width=True)
+else:
+    st.info("Belum ada data project dengan tanggal upload untuk ditampilkan dalam grafik.")
+
+st.subheader("📆 Project Selesai Lebih dari 30 Hari Lalu")
+now = datetime.now()
+if not df.empty:
+    df['Tanggal Selesai'] = pd.to_datetime(df['Tanggal Selesai'], errors='coerce')
+    selesai_lama = df[(df['Selesai']) & (df['Tanggal Selesai'].notna()) & ((now - df['Tanggal Selesai']).dt.days > 30)]
+    if not selesai_lama.empty:
+        st.dataframe(selesai_lama[['Nama Project', 'Tanggal Selesai']], use_container_width=True)
+    else:
+        st.info("Tidak ada project yang selesai lebih dari 30 hari lalu.")
+
+st.subheader("🗑 Hapus File Manual dari Folder Uploads")
+files = os.listdir(UPLOAD_FOLDER)
+if files:
+    selected_files = st.multiselect("Pilih file yang ingin dihapus:", files)
+    if st.button("Hapus File Terpilih"):
+        if not selected_files:
+            st.warning("Silakan pilih minimal satu file untuk dihapus.")
+        else:
+            for f in selected_files:
+                try:
+                    os.remove(os.path.join(UPLOAD_FOLDER, f))
+                    st.success(f"File '{f}' berhasil dihapus.")
+                except Exception as e:
+                    st.error(f"Gagal menghapus file '{f}': {e}")
+else:
+    st.info("Tidak ada file di folder upload untuk dihapus.")
